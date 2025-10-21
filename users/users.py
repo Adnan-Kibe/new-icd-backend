@@ -42,7 +42,7 @@ async def login_user(request: UserLoginSchema, db: db_dependency):
 
         # Send OTP email
         result = await send_otp_email(recipient=request.email, otp_code=new_otp)
-        if result.status != "success":
+        if result.get("status") != "success":
             raise Exception("Failed to send OTP email")
         
     except Exception as e:
