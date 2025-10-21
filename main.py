@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from functions import generate_data
 from sqlalchemy.orm import Session
 from database import engine
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,6 +24,18 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost:3000/"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(users_router)
 app.include_router(hospital_router)
