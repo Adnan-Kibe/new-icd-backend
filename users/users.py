@@ -1,9 +1,10 @@
+from typing import List
 from fastapi import APIRouter, HTTPException, status
 from functions import db_dependency, generate_jwt_token, otp_generator
 from models import Hospital, User
-from redis_client import get_redis_client
 from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema, UserSchemaWithTokens
 from logger import logger
+from services.redis_client import get_redis_client
 from services.send_email import send_otp_email
 
 router = APIRouter(
@@ -136,7 +137,19 @@ async def resend_otp_to_user(request: OTPResendSchema):
 
     return result
 
-@router.get("/")
+@router.get("/", response_model=List[UserSchema])
 async def get_all_users(db: db_dependency):
     users = db.query(User).all()
-    return users
+    updated_users = []
+    for user in users:
+        updated_user = UserSchema(
+            work_id=user.work_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            occupation=user.occupation,
+            department=user.department,
+            hospital_id=user.hospital.hospital_id
+        )
+        updated_users.append(updated_user)
+    return updated_users
