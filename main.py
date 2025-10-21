@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from database import init_db
 from users import users_router
+from chats import chat_router
 from hospitals import hospital_router
 from contextlib import asynccontextmanager
 from dummy_data import generate_data
@@ -39,3 +40,4 @@ app.add_middleware(
 
 app.include_router(users_router)
 app.include_router(hospital_router)
+app.include_router(chat_router)
