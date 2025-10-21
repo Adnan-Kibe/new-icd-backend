@@ -1,0 +1,1 @@
+from .hospitals import router as hospital_router

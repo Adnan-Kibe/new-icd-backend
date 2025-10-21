@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from database import init_db
 from users import users_router
+from hospitals import hospital_router
 from contextlib import asynccontextmanager
 from functions import generate_data
 from sqlalchemy.orm import Session
@@ -24,3 +25,4 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(users_router)
+app.include_router(hospital_router)
