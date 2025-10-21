@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from functions import db_dependency, generate_jwt_token, otp_generator
 from models import Hospital, User
 from redis_client import get_redis_client
-from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema
+from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema, UserSchemaWithTokens
 from logger import logger
 from services.send_email import send_otp_email
 
@@ -54,7 +54,7 @@ async def login_user(request: UserLoginSchema, db: db_dependency):
     
     return result
 
-@router.post("/verify-otp/")
+@router.post("/verify-otp/", response_model=UserSchemaWithTokens)
 async def verify_otp(request: OTPSchema, db: db_dependency):
     if not request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No info was provided")
@@ -88,7 +88,7 @@ async def verify_otp(request: OTPSchema, db: db_dependency):
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "user_details": user_model,
     }
 
 @router.post("/resend-otp/")

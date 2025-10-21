@@ -31,3 +31,8 @@ class OTPSchema(BaseModel):
 
 class OTPResendSchema(BaseModel):
     email: str
+
+class UserSchemaWithTokens(BaseModel):
+    access_token: str
+    refresh_token: str
+    user_details: UserSchema
