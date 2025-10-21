@@ -8,7 +8,7 @@ from database import get_session
 from fastapi import Depends
 from typing import Annotated, Literal
 from sqlalchemy.orm import Session
-from logger import logger
+from services.logger import logger
 import random
 import string
 

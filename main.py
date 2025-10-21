@@ -4,7 +4,7 @@ from users import users_router
 from chats import chat_router
 from hospitals import hospital_router
 from contextlib import asynccontextmanager
-from dummy_data import generate_data
+from services.dummy_data import generate_data
 from sqlalchemy.orm import Session
 from database import engine
 from fastapi.middleware.cors import CORSMiddleware

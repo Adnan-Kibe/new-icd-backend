@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from functions import db_dependency, generate_jwt_token, otp_generator
 from models import Hospital, User
 from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema, UserSchemaWithTokens
-from logger import logger
+from services.logger import logger
 from services.redis_client import get_redis_client
 from services.send_email import send_otp_email
 
