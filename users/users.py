@@ -77,9 +77,23 @@ async def verify_otp(request: OTPSchema, db: db_dependency):
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    hospital = db.query(Hospital).where(Hospital.id == user.hospital_id).first()
+    if not hospital:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hospital not found")
+    
+
 
     # Convert ORM user to Pydantic model
-    user_model = UserSchema.model_validate(user)
+    user_model = UserSchema(
+        work_id= user.work_id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        occupation=user.occupation,
+        department=user.department,
+        hospital_id=hospital.hospital_id
+    )
 
     # Generate JWT tokens
     access_token = generate_jwt_token(user_model, token_type="access")
