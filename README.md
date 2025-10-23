@@ -1,3 +1,3 @@
 # ICD BACKEND
 
-> Use alembic upgrade head to update the tables
+> Run the Docker Compose file to start the services, then execute `alembic upgrade head` to apply the latest database migrations and update all tables.
