@@ -78,8 +78,9 @@ class ChatRoom(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, unique=True, nullable=False, index=True, default=create_chat_id)
     name: Mapped[str] = mapped_column(String, index=True, unique=True, nullable=False)
     messages: Mapped[List["ChatMessage"]] = relationship("ChatMessage", back_populates="room", cascade="all, delete-orphan")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    participants: Mapped[List["Participant"]] = relationship("Participant", back_populates="room", cascade="all, delete-orphan")
 
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 class ChatMessage(Base):
     __tablename__ = "messages"
@@ -105,4 +106,18 @@ class MessageSender(Base):
     message: Mapped["ChatMessage"] = relationship("ChatMessage", back_populates="sender_association")
 
     def __repr__(self):
-        return f"<MessageSender(type={self.sender_type}, sender_id={self.sender_id})>"
+        return f"MessageSender(type={self.sender_type}, sender_id={self.sender_id})"
+    
+class Participant(Base):
+    __tablename__ = "participants"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    room_id: Mapped[str] = mapped_column(String, ForeignKey("chats.id", ondelete="CASCADE"))
+    participant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    participant_type: Mapped[str] = mapped_column(String, nullable=False) 
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    room: Mapped["ChatRoom"] = relationship("ChatRoom", back_populates="participants")
+
+    def __repr__(self):
+        return f"Participant(type={self.participant_type}, participant_id={self.participant_id}, room_id={self.room_id})"
