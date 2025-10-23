@@ -5,9 +5,10 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from pydantic import BaseModel
 from database import get_session
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from typing import Annotated, Literal
 from sqlalchemy.orm import Session
+from schemas.users_schema import UserSchema
 from services.logger import logger
 import random
 import string
@@ -68,5 +69,17 @@ def decode_jwt_token(token: str, model: type[BaseModel], token_type: Literal["ac
     except Exception as e:
         raise jwt.InvalidTokenError(f"Invalid token: {str(e)}")
     
-def get_current_user():
-    pass
+def get_current_user(model: type[BaseModel]):
+    async def dependency(token: str = Depends(oauth2_scheme)):
+        try:
+            return decode_jwt_token(token, model)
+        except jwt.InvalidTokenError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(e),
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    return dependency
+
+user_dependency = Annotated[UserSchema, Depends(get_current_user(UserSchema))]

@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Response
-from functions import db_dependency, generate_jwt_token, otp_generator
+from functions import db_dependency, decode_jwt_token, generate_jwt_token, otp_generator, user_dependency
 from models import Hospital, User
 from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema, UserSchemaWithTokens
 from services.logger import logger
@@ -13,6 +13,35 @@ router = APIRouter(
 )
 
 redis_client = get_redis_client()
+
+@router.get("/", response_model=List[UserSchema])
+async def get_all_users(db: db_dependency):
+    """
+    Fetch all users from the database and return them as a list of UserSchema objects.
+    """
+
+    # Query all user records from the database
+    users = db.query(User).all()
+
+    updated_users = []
+
+    # Loop through each user and map their data into the Pydantic schema
+    for user in users:
+        # Since hospital_id in the User model is a foreign key reference (int),
+        # we fetch the related Hospital's 'hospital_id' string for clarity in the response.
+        updated_user = UserSchema(
+            work_id=user.work_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            occupation=user.occupation,
+            department=user.department,
+            hospital_id=user.hospital.hospital_id  # Retrieve readable hospital_id string
+        )
+        updated_users.append(updated_user)
+
+    # Return the formatted list of user objects as JSON
+    return updated_users
 
 @router.post("/login/")
 async def login_user(request: UserLoginSchema, db: db_dependency):
@@ -137,31 +166,11 @@ async def resend_otp_to_user(request: OTPResendSchema):
 
     return result
 
-@router.get("/", response_model=List[UserSchema])
-async def get_all_users(db: db_dependency):
-    """
-    Fetch all users from the database and return them as a list of UserSchema objects.
-    """
-
-    # Query all user records from the database
-    users = db.query(User).all()
-
-    updated_users = []
-
-    # Loop through each user and map their data into the Pydantic schema
-    for user in users:
-        # Since hospital_id in the User model is a foreign key reference (int),
-        # we fetch the related Hospital's 'hospital_id' string for clarity in the response.
-        updated_user = UserSchema(
-            work_id=user.work_id,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            email=user.email,
-            occupation=user.occupation,
-            department=user.department,
-            hospital_id=user.hospital.hospital_id  # Retrieve readable hospital_id string
+@router.get("/chats")
+async def get_all_chats(db: db_dependency, current_user: user_dependency):
+    if not current_user:
+        logger.warning("Unauthorized access to chats")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User must be logged in"
         )
-        updated_users.append(updated_user)
-
-    # Return the formatted list of user objects as JSON
-    return updated_users
