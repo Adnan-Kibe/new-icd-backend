@@ -67,3 +67,6 @@ def decode_jwt_token(token: str, model: type[BaseModel], token_type: Literal["ac
         raise jwt.InvalidTokenError(str(e))
     except Exception as e:
         raise jwt.InvalidTokenError(f"Invalid token: {str(e)}")
+    
+def get_current_user():
+    pass
