@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import DateTime, Integer, String, ForeignKey
+from sqlalchemy import DateTime, Integer, String, ForeignKey, func, select
+from sqlalchemy.ext.hybrid import hybrid_property
 from typing import List
 import uuid
 
@@ -82,11 +83,29 @@ class ChatRoom(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
+    @hybrid_property
+    def last_message(self):
+        """Python-side fallback (optional)."""
+        if not self.messages:
+            return None
+        return max(self.messages, key=lambda m: m.timestamp)
+    
+    @last_message.expression
+    # Works when you use ChatRoom.last_message in a query
+    def last_message(cls):
+        subq = (
+            select(func.max(ChatMessage.timestamp))
+            .where(ChatMessage.room_id == cls.id)
+            .correlate(cls)
+            .scalar_subquery()
+        )
+        return subq
+
 class ChatMessage(Base):
     __tablename__ = "messages"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, unique=True, default=lambda: str(uuid.uuid4()))
-    message: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     room_id: Mapped[str] = mapped_column(String, ForeignKey("chats.id"))

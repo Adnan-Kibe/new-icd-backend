@@ -1,11 +1,12 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Response
 from functions import db_dependency, decode_jwt_token, generate_jwt_token, otp_generator, user_dependency
-from models import Hospital, User
+from models import ChatMessage, ChatRoom, Hospital, Participant, User
 from schemas.users_schema import OTPResendSchema, OTPSchema, UserLoginSchema, UserSchema, UserSchemaWithTokens
 from services.logger import logger
 from services.redis_client import get_redis_client
 from services.send_email import send_otp_email
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(
     prefix="/users",
@@ -166,11 +167,65 @@ async def resend_otp_to_user(request: OTPResendSchema):
 
     return result
 
+from sqlalchemy.orm import selectinload
+
 @router.get("/chats")
-async def get_all_chats(db: db_dependency, current_user: user_dependency):
+async def get_all_personal_chats(db: db_dependency, current_user: user_dependency):
     if not current_user:
-        logger.warning("Unauthorized access to chats")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User must be logged in"
+        raise HTTPException(status_code=401, detail="User must be logged in")
+
+    user = db.query(User).filter(User.work_id == current_user.work_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    participant_type = user.__class__.__name__
+
+    rooms = (
+        db.query(ChatRoom)
+        .options(
+            selectinload(ChatRoom.participants),
+            selectinload(ChatRoom.messages).selectinload(ChatMessage.sender_association)
         )
+        .join(ChatRoom.participants)
+        .filter(
+            Participant.participant_id == user.id,
+            Participant.participant_type == participant_type
+        )
+        .order_by(ChatRoom.last_message.desc())  
+        .all()
+    )
+
+    chats_data = []
+    for room in rooms:
+        # Efficiently pick the last message already loaded in memory (since we preloaded messages)
+        last_message_obj = (
+            max(room.messages, key=lambda m: m.timestamp)
+            if room.messages else None
+        )
+
+        last_message_data = (
+            {
+                "id": last_message_obj.id,
+                "content": last_message_obj.content,
+                "timestamp": last_message_obj.timestamp,
+                "sender": {
+                    "id": last_message_obj.sender_association.sender_id,
+                    "type": last_message_obj.sender_association.sender_type,
+                } if last_message_obj.sender_association else None,
+            }
+            if last_message_obj else None
+        )
+
+        chats_data.append({
+            "room_id": room.id,
+            "room_name": room.name,
+            "participants": [
+                {"participant_id": p.participant_id, "participant_type": p.participant_type}
+                for p in room.participants
+            ],
+            "last_message": last_message_data,
+            "created_at": room.created_at,
+        })
+
+    return {"chats": chats_data}
+
