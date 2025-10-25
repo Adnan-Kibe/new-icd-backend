@@ -6,8 +6,9 @@ import jwt
 from pydantic import BaseModel
 from database import get_session
 from fastapi import Depends, HTTPException, status
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Type
 from sqlalchemy.orm import Session
+from models import Base, User
 from schemas.users_schema import UserSchema
 from services.logger import logger
 import random
@@ -39,6 +40,9 @@ def generate_jwt_token(data: BaseModel, token_type: Literal["access", "refresh"]
     return encoded_jwt
 
 def decode_jwt_token(token: str, model: type[BaseModel], token_type: Literal["access", "refresh"] = "access") -> BaseModel:
+    """
+    Decodes and validates a JWT token, returning a Pydantic model instance.
+    """
     try:
         # Choose secret key based on token type
         secret_key = ACCESS_SECRET_KEY if token_type == "access" else REFRESH_SECRET_KEY
@@ -82,4 +86,42 @@ def get_current_user(model: type[BaseModel]):
 
     return dependency
 
+
+def authenticate_user(model: Type[BaseModel], table: Type[Base]):
+    def authenticate_websocket_token(token: str, db: Session):
+        """
+        Authenticates a WebSocket connection using a JWT token.
+        Works for any table with an 'id-like' identifier field (e.g., work_id, admin_id, hospital_id).
+        """
+        try:
+            user_data = decode_jwt_token(token, model)
+
+            # Dynamically determine which ID field the table uses
+            possible_ids = ["work_id", "admin_id", "hospital_id"]
+            id_field = next((id_ for id_ in possible_ids if hasattr(table, id_)), None)
+
+            if not id_field:
+                logger.error(f"No recognized ID field found for table {table.__name__}")
+                return None
+
+            # Build the query dynamically
+            filters = [
+                getattr(table, id_field) == getattr(user_data, id_field),
+                table.email == user_data.email,
+            ]
+            user = db.query(table).filter(*filters).first()
+
+            if not user:
+                logger.warning(f"{table.__name__} not found for token: {token}")
+                return None
+
+            return user
+
+        except Exception as e:
+            logger.error(f"WebSocket token authentication failed for {table.__name__}: {e}")
+            return None
+
+    return authenticate_websocket_token
+
+authenticate_user_ws = authenticate_user(UserSchema, User)
 user_dependency = Annotated[UserSchema, Depends(get_current_user(UserSchema))]

@@ -228,4 +228,3 @@ async def get_all_personal_chats(db: db_dependency, current_user: user_dependenc
         })
 
     return {"chats": chats_data}
-
